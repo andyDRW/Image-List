@@ -12,6 +12,10 @@ public class PhotoItem {
     public PhotoItem(){
 
     }
+    public PhotoItem(String title, String url){
+        this.title=title;
+        this.url=url;
+    }
     public PhotoItem(Photo photo){
         title=photo.getTitle();
         url="https://farm"+photo.getFarm()+".staticflickr.com/"

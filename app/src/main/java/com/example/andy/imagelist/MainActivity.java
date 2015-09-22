@@ -1,7 +1,6 @@
 package com.example.andy.imagelist;
 
 
-import android.app.Fragment;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -12,8 +11,10 @@ import android.provider.MediaStore;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.Toolbar;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
@@ -28,7 +29,6 @@ import com.googlecode.flickrjandroid.photos.SearchParameters;
 import org.json.JSONException;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +38,6 @@ import java.util.concurrent.TimeoutException;
 public class MainActivity extends android.support.v7.app.AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener {
     private AsyncTask<String, Void, PhotoList>  mFlickrTask;
     private PictureAdapter mPictureAdapter;
-    private SavedImageAdapter savedImageAdapter;
     private PhotoList photoList;
     private ListView mPicListView;
     private EditText mSearchEditText;
@@ -73,9 +72,7 @@ public class MainActivity extends android.support.v7.app.AppCompatActivity imple
             }
             return photoList;
         }
-
     }
-
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
@@ -83,37 +80,57 @@ public class MainActivity extends android.support.v7.app.AppCompatActivity imple
         outState.putString(SAVED_SEARCH_STRING,mSearchEditText.getText().toString());
     }
 
-
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        mToolbar=(Toolbar)findViewById(R.id.custom_toolbar);
-        mPicListView=(ListView)findViewById(R.id.photo_list);
-        mSearchEditText=(EditText)findViewById(R.id.search_edit_text);
+        mToolbar = (Toolbar) findViewById(R.id.custom_toolbar);
+        mPicListView = (ListView) findViewById(R.id.photo_list);
+        mSearchEditText = (EditText) findViewById(R.id.search_edit_text);
+        mSearchEditText.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                    search(mSearchEditText.getText().toString());
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        });
         setSupportActionBar(mToolbar);
-        HelperFactory.setHelper(getApplicationContext());
-        if(savedInstanceState!=null){
-            String searchTag=savedInstanceState.getString(SAVED_SEARCH_STRING);
-            if(searchTag!=null){
+
+        String imagePath=getIntent().getStringExtra("image_path");
+        if(imagePath!=null){
+            String imageTitle=getIntent().getStringExtra("image_title");
+            PhotoItem item=new PhotoItem(imageTitle,imagePath);
+            SavedPhotosSingleton.addItem(item);
+        }
+        if (savedInstanceState != null) {
+            String searchTag = savedInstanceState.getString(SAVED_SEARCH_STRING);
+            if (searchTag.length() > 0) {
                 mSearchEditText.setText(searchTag);
                 search(searchTag);
             }
+            else {
+                setAdapter(SavedPhotosSingleton.getItems());
+            }
         }
         else {
-
-            try {
-                ArrayList<SavedImage> savedImages = (ArrayList<SavedImage>) HelperFactory.getHelper().getSavedImageDAO().getAllSavedImages();
-                savedImageAdapter = new SavedImageAdapter(this, savedImages);
-                mPicListView.setAdapter(savedImageAdapter);
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            setAdapter( SavedPhotosSingleton.getItems());
         }
     }
 
+    private void setAdapter(ArrayList<PhotoItem> items){
+        mPictureAdapter = new PictureAdapter(this, items);
+        mPictureAdapter.notifyDataSetChanged();
+        mPicListView.setAdapter(mPictureAdapter);
+    }
+
+    @Override
+    protected void onResumeFragments() {
+        super.onResumeFragments();
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -162,9 +179,10 @@ public class MainActivity extends android.support.v7.app.AppCompatActivity imple
                 PhotoItem photoItem = new PhotoItem(photo);
                 itemsList.add(photoItem);
             }
-            mPictureAdapter = new PictureAdapter(this, itemsList);
-            mPictureAdapter.notifyDataSetChanged();
-            mPicListView.setAdapter(mPictureAdapter);
+            if(SavedPhotosSingleton.getSize()>0){
+                itemsList.addAll(SavedPhotosSingleton.getItems());
+            }
+            setAdapter(itemsList);
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
@@ -203,6 +221,5 @@ public class MainActivity extends android.support.v7.app.AppCompatActivity imple
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        HelperFactory.releaseHelper();
     }
 }

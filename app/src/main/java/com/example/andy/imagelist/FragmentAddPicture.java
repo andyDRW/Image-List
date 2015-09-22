@@ -7,9 +7,11 @@ import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.inputmethodservice.Keyboard;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,7 +35,8 @@ public class FragmentAddPicture extends DialogFragment {
     private String mPicturePath;
     private EditText mEditTextTitle;
     private Context context;
-
+    private final String IMAGE_PATH="image_path";
+    private final String IMAGE_TITLE="image_title";
 
     public FragmentAddPicture() {
 
@@ -53,7 +56,12 @@ public class FragmentAddPicture extends DialogFragment {
         mEditTextTitle=(EditText)v.findViewById(R.id.editText_picture_title);
         mImage=(ImageView)v.findViewById(R.id.photo_preview);
         mButtonCancel=(Button)v.findViewById(R.id.button_cancel);
-        Picasso.with(context).load("file://" + mPicturePath).resize(300, 300).into(mImage);
+        if(savedInstanceState!=null){
+            mEditTextTitle.setText(savedInstanceState.getString(IMAGE_TITLE));
+            mPicturePath=savedInstanceState.getString(IMAGE_PATH);
+        }
+        mPicturePath="file://" + mPicturePath;;
+        Picasso.with(context).load(mPicturePath).resize(300,300).into(mImage);
         mButtonCancel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -63,17 +71,21 @@ public class FragmentAddPicture extends DialogFragment {
         mButtonOk.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                SavedImage savedImage=new SavedImage(mEditTextTitle.getText().toString(),mPicturePath);
-                try {
-                    HelperFactory.getHelper().getSavedImageDAO().create(savedImage);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
                 Intent intent = new Intent(getActivity(), MainActivity.class);
+                intent.putExtra(IMAGE_PATH,mPicturePath)
+                .putExtra(IMAGE_TITLE, mEditTextTitle.getText().toString());
                 startActivity(intent);
                 dismiss();
             }
         });
         return v;
     }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putString(IMAGE_PATH,mPicturePath);
+        outState.putString(IMAGE_TITLE,mEditTextTitle.getText().toString());
+        super.onSaveInstanceState(outState);
+    }
+
 }
